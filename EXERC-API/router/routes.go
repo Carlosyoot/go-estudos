@@ -1,15 +1,18 @@
 package router
 
-import "github.com/gin-gonic/gin"
+import (
+	"github.com/Carlosyoot/go-estudos/handler"
+	"github.com/Carlosyoot/go-estudos/middleware"
+	"github.com/gin-gonic/gin"
+)
 
 func InitializeRoutes(router *gin.Engine) {
-	v1 := router.Group("viasoft/api/")
+	v1 := router.Group("/api")
 	{
 		v1.GET("/logs", func(ctx *gin.Context) {
-			ctx.JSON(200, gin.H{
-				"logs": "nenhum",
-			})
+			ctx.JSON(200, gin.H{"logs": "nenhum"})
 		})
 
+		v1.GET("/usuarios", middleware.AuthBearer(), handler.GetHandler)
 	}
 }
