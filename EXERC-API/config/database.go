@@ -5,16 +5,20 @@ import (
 	"log"
 	"time"
 
-	"github.com/cengsin/oracle"
+	oracle "github.com/dzwvip/gorm-oracle"
+	goora "github.com/sijms/go-ora/v2"
 	"gorm.io/gorm"
 )
 
 var DB *gorm.DB
 
 func ConnectDatabase() {
-	url := "DATABASE/DATABASE@localhost:1521/ORLC19"
+	dsn := goora.BuildUrl("localhost", 1521, "OK", "OK", "OK", nil)
 
-	db, err := gorm.Open(oracle.Open(url), &gorm.Config{})
+	db, err := gorm.Open(oracle.Open(dsn), &gorm.Config{
+
+		PrepareStmt: true,
+	})
 	if err != nil {
 		log.Fatalf("Erro ao conectar no Oracle: %v", err)
 	}
@@ -24,11 +28,11 @@ func ConnectDatabase() {
 		log.Fatalf("Erro ao obter o pool de conexões: %v", err)
 	}
 
-	sqlDB.SetMaxOpenConns(20)
-	sqlDB.SetMaxIdleConns(10)
+	sqlDB.SetMaxOpenConns(50)
+	sqlDB.SetMaxIdleConns(25)
 	sqlDB.SetConnMaxLifetime(30 * time.Minute)
+	sqlDB.SetConnMaxIdleTime(5 * time.Minute)
 
 	fmt.Println("Conectado no Oracle com pool configurado!")
-
 	DB = db
 }
