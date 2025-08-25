@@ -5,6 +5,7 @@ go 1.25.0
 require (
 	github.com/dzwvip/gorm-oracle v0.1.2
 	github.com/gin-gonic/gin v1.10.1
+	github.com/joho/godotenv v1.5.1
 	github.com/sijms/go-ora/v2 v2.9.0
 	gorm.io/gorm v1.30.1
 )

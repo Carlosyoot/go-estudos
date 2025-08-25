@@ -10,7 +10,7 @@ func InitializeRoutes(router *gin.Engine) {
 	v1 := router.Group("/api")
 	{
 		v1.GET("/logs", func(ctx *gin.Context) {
-			ctx.JSON(200, gin.H{"logs": "nenhum"})
+			ctx.JSON(200, gin.H{"logs": "nenhum log"})
 		})
 
 		v1.GET("/usuarios", middleware.AuthBearer(), handler.GetHandler)
