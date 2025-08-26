@@ -13,7 +13,7 @@ import (
 var DB *gorm.DB
 
 func ConnectDatabase() {
-	dsn := goora.BuildUrl("localhost", 1521, "OK", "OK", "OK", nil)
+	dsn := goora.BuildUrl("localhost", 1521, "PETROSHOW", "VIASOFTGP", "VIASOFTGP", nil)
 
 	db, err := gorm.Open(oracle.Open(dsn), &gorm.Config{
 
