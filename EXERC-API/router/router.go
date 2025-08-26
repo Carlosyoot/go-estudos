@@ -20,6 +20,8 @@ func Initialize() {
 
 	InitializeRoutes(router)
 
+	router.Run()
+
 	srv := &http.Server{
 		Addr:              ":8080",
 		Handler:           router,

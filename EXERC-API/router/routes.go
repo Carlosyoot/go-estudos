@@ -14,5 +14,7 @@ func InitializeRoutes(router *gin.Engine) {
 		})
 
 		v1.GET("/usuarios", middleware.AuthBearer(), handler.GetHandler)
+		v1.GET("/usuariosV2", middleware.AuthBearer(), handler.GetHandlerStreamChunk)
+
 	}
 }
