@@ -45,8 +45,8 @@ func Observar(ctx context.Context, dir string) error {
 			case ev := <-watcher.Events:
 
 				if ev.Has(fsnotify.Create) {
-					if strings.EqualFold(filepath.Ext(ev.Name), ".rem") {
-						leitor.RLock()
+					if strings.EqualFold(filepath.Ext(ev.Name), ".REM") {
+						leitor.Lock()
 						MapValue[ev.Name] = struct{}{}
 						leitor.Unlock()
 					}

@@ -1,11 +1,39 @@
 package router
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gin-contrib/gzip"
+
+	"github.com/gin-gonic/gin"
+)
 
 func Initialize() {
 
-	router := gin.Default()
-	InitializeRoutes(router)
-	router.Run(":8080")
+	gin.SetMode(gin.ReleaseMode)
 
+	router := gin.New()
+	router.Use(gin.Recovery())
+	router.Use(gzip.Gzip(gzip.BestSpeed))
+
+	InitializeRoutes(router)
+
+	router.Run()
+
+	srv := &http.Server{
+		Addr:              ":8080",
+		Handler:           router,
+		ReadTimeout:       5 * time.Second,
+		ReadHeaderTimeout: 2 * time.Second,
+		WriteTimeout:      65 * time.Second,
+		IdleTimeout:       90 * time.Second,
+		MaxHeaderBytes:    1 << 20,
+	}
+
+	log.Println("Servidor rodando em :8080")
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("erro ao subir servidor: %v", err)
+	}
 }
