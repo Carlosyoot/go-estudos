@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"net/http"
@@ -12,8 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func GetHandler(ctx *gin.Context) {
+const chunkSize = 200
 
+func GetHandler(ctx *gin.Context) {
 	if config.DB == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "DB não inicializado"})
 		return
@@ -30,7 +32,7 @@ func GetHandler(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"data": data})
 }
 
-func GetHandlerStream(ctx *gin.Context) {
+func GetHandlerStreamChunk(ctx *gin.Context) {
 	if config.DB == nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "DB não inicializado"})
 		return
@@ -41,7 +43,10 @@ func GetHandlerStream(ctx *gin.Context) {
 
 	rows, cols, err := database.QuerySimplesV2(reqCtx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "falha ao executar consulta", "detail": err.Error()})
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error":  "falha ao executar consulta",
+			"detail": err.Error(),
+		})
 		return
 	}
 	defer rows.Close()
@@ -49,52 +54,106 @@ func GetHandlerStream(ctx *gin.Context) {
 	ctx.Header("Content-Type", "application/json; charset=utf-8")
 	ctx.Status(http.StatusOK)
 
-	w := ctx.Writer
-	enc := json.NewEncoder(w)
-	enc.SetEscapeHTML(false)
+	bw := bufio.NewWriterSize(ctx.Writer, 64*1024)
+	defer bw.Flush()
+	flusher, _ := ctx.Writer.(http.Flusher)
 
-	_, _ = w.Write([]byte(`{"data":[`))
+	_, _ = bw.Write([]byte(`{"data":[`))
+	firstGlobal := true
 
-	first := true
 	vals := make([]any, len(cols))
 	ptrs := make([]any, len(cols))
 	for i := range vals {
 		ptrs[i] = &vals[i]
 	}
 
+	chunk := make([]map[string]any, 0, chunkSize)
+
+	flushChunk := func() error {
+		if len(chunk) == 0 {
+			return nil
+		}
+		for i := 0; i < len(chunk); i++ {
+			if !firstGlobal {
+				if _, err := bw.Write([]byte{','}); err != nil {
+					return err
+				}
+			} else {
+				firstGlobal = false
+			}
+			b, err := json.Marshal(chunk[i])
+			if err != nil {
+				return err
+			}
+			if _, err = bw.Write(b); err != nil {
+				return err
+			}
+		}
+		chunk = chunk[:0]
+		if err := bw.Flush(); err != nil {
+			return err
+		}
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return nil
+	}
+
 	for rows.Next() {
 		if err := rows.Scan(ptrs...); err != nil {
-			_, _ = w.Write([]byte(`],"error":"scan error"}`))
+			_, _ = bw.Write([]byte(`],"error":"scan error"}`))
+			bw.Flush()
+			if flusher != nil {
+				flusher.Flush()
+			}
 			return
 		}
 
 		obj := make(map[string]any, len(cols))
 		for i, c := range cols {
 			key := strings.ToLower(c)
-
-			if b, ok := vals[i].([]byte); ok {
-				obj[key] = string(b)
-			} else {
-				obj[key] = vals[i]
+			switch v := vals[i].(type) {
+			case []byte:
+				obj[key] = string(v)
+			default:
+				obj[key] = v
 			}
 		}
 
-		if !first {
-			_, _ = w.Write([]byte(","))
-		}
-		first = false
-
-		if err := enc.Encode(&obj); err != nil {
-			_, _ = w.Write([]byte(`],"error":"encode error"}`))
-			return
+		chunk = append(chunk, obj)
+		if len(chunk) >= chunkSize {
+			if err := flushChunk(); err != nil {
+				_, _ = bw.Write([]byte(`],"error":"flush error"}`))
+				bw.Flush()
+				if flusher != nil {
+					flusher.Flush()
+				}
+				return
+			}
 		}
 	}
 
 	if err := rows.Err(); err != nil {
-		_, _ = w.Write([]byte(`],"error":"rows error"}`))
+		_, _ = bw.Write([]byte(`],"error":"rows error"}`))
+		bw.Flush()
+		if flusher != nil {
+			flusher.Flush()
+		}
 		return
 	}
 
-	_, _ = w.Write([]byte(`]}`))
+	if err := flushChunk(); err != nil {
+		_, _ = bw.Write([]byte(`],"error":"flush error"}`))
+		bw.Flush()
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return
+	}
 
+	_, _ = bw.Write([]byte(`]}`))
+	bw.Flush()
+	if flusher != nil {
+		flusher.Flush()
+	}
 }
