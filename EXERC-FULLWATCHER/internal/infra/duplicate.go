@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/Carlosyoot/go-estudos/internal/crypto"
+	"github.com/Carlosyoot/go-estudos/internal/http"
 	"github.com/Carlosyoot/go-estudos/internal/model"
-	"github.com/Carlosyoot/go-estudos/internal/post"
 )
 
 func ProcessarArquivos(file, processedDir string) (bool, error) {
@@ -34,6 +34,7 @@ func ProcessarArquivos(file, processedDir string) (bool, error) {
 	}
 
 	reqBody := model.FinnetSoap{
+		Servico:     "urn:EnviarArquivosRequest",
 		Usuario:     os.Getenv("/"),
 		Senha:       os.Getenv("/"),
 		CaixaPostal: os.Getenv("/"),
@@ -45,7 +46,7 @@ func ProcessarArquivos(file, processedDir string) (bool, error) {
 
 	envelope := model.MontarSoap(reqBody)
 
-	_, sendErr := post.SenderSoap(envelope)
+	_, sendErr := http.SenderSoap(envelope)
 	if sendErr != nil {
 		if err := ensureDir(fallbackDir); err != nil {
 			return false, fmt.Errorf("erro ao garantir pasta de falha: %v", err)
