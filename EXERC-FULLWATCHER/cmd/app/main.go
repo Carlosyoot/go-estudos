@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Carlosyoot/go-estudos/internal/infra"
+	"github.com/Carlosyoot/go-estudos/internal/scheduler"
 	"github.com/Carlosyoot/go-estudos/router"
 	"github.com/joho/godotenv"
 )
@@ -36,6 +37,8 @@ func main() {
 			log.Fatalf("Erro no servidor: %v", err)
 		}
 	}()
+
+	go scheduler.SchedulingJob(contexto)
 
 	<-contexto.Done()
 
